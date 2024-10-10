@@ -27,10 +27,10 @@ This document describes solution proposal for the system which supports the foll
 Goal of the system is to help the client to track and manage the listed client business processes and to automatically generate the output artifacts, i.e. final documents that come out of these processes.
 
 Definition of scope and key requirements will be documented outside of this document.
-Nevertheless, rough and incomplete list of captured use cases can be found in appendix in the <<Requirements>> section.
+Nevertheless, course, and probably incomplete, list of captured use cases can be found in appendix in the <<Requirements>> section.
 
 For the quick overview of the solution please take a look at <<Context View>> section.
-For the interested, more details about the system can be found in the <<Functional View>> section.
+More detail description of the system and its key functional elements can be found in the <<Functional View>> section.
 
 ////
 == Stakeholders
@@ -111,36 +111,33 @@ skinparam agentBackgroundColor White
 skinparam componentBackgroundColor White
 skinparam nodeBackgroundColor White
 
-USERS(SystemUser, "User")
+USERS(SystemUsers)
 component Browser <<client>> {
  JAVASCRIPT(WebUI, "Synthesis UI", "component", "#EE472A", "system") #D8D2C2
 }
 AWSCLOUD(aws) {
  AMAZONCLOUDFRONT(CloudFront)
- AMAZONCOGNITO(CognitoAuthService)
  AMAZONAPIGATEWAY(ApiGateway)
- AMAZONEC2_INSTANCES(ec2_cluster) {
-  AMAZONEC2(System, "Synthesis Backend Services", "component", "#F58536", "system") #D8D2C2
- }
+ AMAZONCOGNITO(CognitoAuthService)
+ AMAZONEC2(System, "Synthesis Business Services", "component", "#F58536", "system") #D8D2C2
  AMAZONRDS(RelationalStore, RelationalStore)
  AMAZONS3(FileStore, FileStore)
  SEARCHDOCUMENTS(DocumentStore, DocumentStore)
- AMAZONMACHINELEARNING(LlmService)
+ AMAZONMACHINELEARNING(MachineLearningServices)
 }
 
-SystemUser --> Browser :<<uses>>
-Browser --> CloudFront :<<access>>
-CloudFront --> WebUI :<<loads>>
+SystemUsers --> Browser :<<use>>
+Browser --> CloudFront :<<get_webapp>>
 WebUI --> CognitoAuthService  :<<login>>
 WebUI --> ApiGateway :<<uses>>
 ApiGateway --> System :<<uses>>
 System --> RelationalStore :<<uses>>
 System --> FileStore :<<uses>>
 System --> DocumentStore :<<uses>>
-System --> LlmService :<<uses>>
+System --> MachineLearningServices :<<uses>>
 
 legend left
-Key
+Color Key
 |Color| Type |
 |<#D8D2C2>| Components comprising the system|
 |<#FFFFFF>| Components external to the system|
@@ -150,19 +147,24 @@ end legend
 
 The system allows users to manage *Sales Engagement process (SOW)* or *IND FDA Submission process (IND)* through a web-based application.
 
-The system has two main parts, the user facing web application (*Synthesis UI*) and the backend services (*Synthesis Backend Services*).
+The system has two main parts, the user facing web application (*Synthesis UI*) and the backend business services (*Synthesis Business Services*).
 The system interfaces with several external entities:
 
-* *Users*: users, using Synthesis UI running in their browsers, log into the system to start new or manage existing SOW or IND processes. Users enters information specific to a process, upload files related to the process and generate output documentation.
+* *Users*: users, using Synthesis UI running in their browsers, log into the system to start new or manage existing SOW or IND processes.
+Users enter information specific to a process, upload files related to the process and generate output documentation.
 * *Browser*: a software installed on user machines that runs Synthesis UI
-* *AmazonCloudFront*: the service that hosts the Synthesis UI files. Browsers download these files and run them as Synthesis UI javascript application when users visit the system web site.
-* *AmazonCognitoService*: the service that hosts user details like username and password, and enables the Synthesis UI to acquire the security token needed for the communication with Synthesis Backend Services
-* *AmazonApiGateway*: the service that exposes the API of Synthesis Backend Services to the internet so it can be used by Synthesis UI. The service provides needed security an scalability features to enable Synthesis UI and Synthesis Backend Services to communicate in a secure and scalable way.
-* *AmazonEC2 instances*: the service that provides runtime platform for the Synthesis Backend Services.
+* *AmazonCloudFront*: the service that hosts the Synthesis UI files.
+Browsers download these files and run them as Synthesis UI javascript application when users visit the system website.
+* *AmazonCognitoService*: the service that hosts user details like username and password, and enables the Synthesis UI to acquire the security token needed for the communication with Synthesis Business Services
+* *AmazonApiGateway*: the service that exposes the API of Synthesis Business Services to the internet, so it can be used by Synthesis UI.
+The service provides needed security and scalability features to enable Synthesis UI and Synthesis Business Services to communicate in a secure and scalable way.
+* *AmazonEC2 instances*: the service that provides runtime platform for the Synthesis Business Services.
 * *AmazonRDS RelationalStore*: the service that provides relational database storage for the system data that needs to be persisted, typically metadata about entities managed by the system.
 * *AmazonS3 FileStore*: the service that provides file storage the files that will be uploaded to the system or generated by the system.
-* *AmazonS3 DocumentStore*: the service that store, retrieve, and manage document-oriented information for the system, typically in formats like JSON. This kind od format is suitable to be feed in large language models. Files from AmazonS3 FileStore will typically be converted into JSON and stored into this service.
-* *AmazonMachineLearning*: the set of machine learning services that system uses to enable to build, train, deploy, and scale machine learning models
+* *AmazonS3 DocumentStore*: the service that store, retrieve, and manage document-oriented information for the system, typically in formats like JSON.
+This kind od format is suitable to be feed in large language models.
+Files from AmazonS3 FileStore will typically be converted into JSON and stored into this service.
+* *AmazonMachineLearning*: the set of machine learning services that system uses to build, train, deploy, and scale machine learning models
 
 == Functional View
 ////
@@ -200,10 +202,11 @@ top to bottom direction
 !includeurl <aws/Database/AmazonRDS/AmazonRDS.puml>
 !includeurl <aws/General/AWScloud/AWScloud.puml>
 !includeurl <aws/General/client/client.puml>
-!includeurl <aws/General/user/user.puml>
+!includeurl <aws/General/users/users.puml>
 !includeurl <aws/MobileServices/AmazonCognito/AmazonCognito.puml>
 !includeurl <aws/NetworkingContentDelivery/AmazonCloudFront/AmazonCloudFront.puml>
 !includeurl <aws/SDKs/JavaScript/JavaScript.puml>
+!includeurl <aws/SDKs/Python/Python.puml>
 !includeurl <aws/Storage/AmazonS3/AmazonS3.puml>
 
 skinparam artifactBackgroundColor White
@@ -211,47 +214,102 @@ skinparam agentBackgroundColor White
 skinparam componentBackgroundColor White
 skinparam nodeBackgroundColor White
 
-USER(usr, "DHC User")
 component Browser <<client>> {
- JAVASCRIPT(WebUI,WebUI)
+ JAVASCRIPT(WebUI, "Synthesis UI", "component", "#EE472A", "system") #D8D2C2
 }
 AWSCLOUD(aws) {
- AMAZONCLOUDFRONT(CloudFront) {
-  file WebUIArtifacts
- }
- AMAZONCOGNITO(CognitoAuthService, CognitoAuthService)
+ AMAZONCLOUDFRONT(CloudFront)
  AMAZONAPIGATEWAY(ApiGateway)
- AMAZONEC2_INSTANCES(ec2_cluster) {
-  AMAZONEC2(ec2_1) {
-   ECSCONTAINER(AuthService, AuthService)
-   ECSCONTAINER(SowService, SowService)
-   ECSCONTAINER(IndService, IndService)
-
-  }
+ AMAZONCOGNITO(CognitoAuthService)
+ component System #D8D2C2 {
+  PYTHON(AIService, AIService, "component", "#F58536", "service") #D8D2C2
+  PYTHON(FileConversionService, FileConversionService, "component", "#F58536", "library") #D8D2C2
+  PYTHON(SowService, SowService, "component", "#F58536", "service") #D8D2C2
+  PYTHON(IndService, IndService, "component", "#F58536", "service") #D8D2C2
  }
- AMAZONRDS(RelationalStore, RelationalStore)
- AMAZONS3(FileStore, FileStore)
- SEARCHDOCUMENTS(DocumentStore, DocumentStore)
- AMAZONMACHINELEARNING(LlmService, Amazon Bedrock)
+ component AwsStorageServices {
+  AMAZONRDS(RelationalStore, RelationalStore)
+  AMAZONS3(FileStore, FileStore)
+  SEARCHDOCUMENTS(DocumentStore, DocumentStore)
+ }
+ AMAZONMACHINELEARNING(MachineLearningServices)
 }
 
-usr --> Browser :<<uses>>
-Browser -d[hidden]- aws
-CloudFront -> Browser :<<loads>>
-CognitoAuthService -> WebUI :<<login?>>
-WebUI --> ApiGateway :<<uses>>
-ApiGateway --> AuthService :<<uses?>>
-ApiGateway --> SowService :<<uses>>
-ApiGateway --> IndService :<<uses>>
-SowService --> RelationalStore
-SowService --> FileStore
-SowService --> DocumentStore
-SowService --> LlmService
+Browser -(0- CloudFront :<<https>>
+WebUI -(0- CognitoAuthService  :<<https>>
+WebUI -(0- ApiGateway :<<https>>
+ApiGateway -(0- SowService :<<http>>
+ApiGateway -(0- IndService :<<http>>
+SowService -r-> FileConversionService :<<request/reply>>
+SowService -(0- AIService :<<http>>
+IndService -l-> FileConversionService :<<request/reply>>
+IndService -(0- AIService :<<http>>
+System -(0-- AwsStorageServices :<<tcp/http>>
+AIService -(0- MachineLearningServices :<<http>>
+FileStore -l[hidden]- RelationalStore
+FileStore -r[hidden]- DocumentStore
+
+legend left
+Color Key
+|Color| Type |
+|<#D8D2C2>| Components comprising the system|
+|<#FFFFFF>| Components external to the system|
+end legend
 @enduml
 ....
 
+The system is composed of five main functional components linked via a number of connector types.
+Because all system services are using some kind of storage, or more than a few, to reduce the clutter, model shows just one general tcp (or http in some cases) connector between the system and aws storage services.
+It should be clear from the description of the particular component, what storage services and connectors it is using.
 
-image::sow_process_list.png[]
+* *SowService*: the component is responsible for management of SOW processes.
+The component supports creation of a new SOW process, editing the details of a process, upload and storage of files relevant to the process, generation of output documents. etc.
+The component provides REST API interface via HTTP request/reply connector to access the component functionalities.
+The component consumes a number of storage services provided by AWS, like:
+** RDS service to store and update metadata about each SOW process
+** S3 service to store files (either input files or generated files) relevant to a SOW process
+** DocumentDB service to keep textual, cleaned versions of the files stored in S3 service
+
++
+The component access all these storage services via well known and documented interfaces using either pure TCP or HTTP request/reply connectors.
+Documentation of the particular storage interfaces can be found on AWS site.
+The component consumes *AIService* to generate needed output documentation using *AIService* REST api via HTTP request/reply connector.
+The component embeds *FileConversionService* as a library. It uses its api via in process method calls to convert the SOW related files between different formats, like PDF to text and vice versa.
+
+* *IndService*: the component is responsible for management of IND processes.
+The component is functionally similar to *SowService*, it just handles different business process.
+The component supports creation of a new IND process, editing the details of a process, upload and storage of files relevant to the process, generation of output documents. etc.
+The component provides REST API interface via HTTP request/reply connector to access the component functionalities.
+The component consumes a number of storage services provided by AWS, like:
+** RDS service to store and update metadata about each IND process
+** S3 service to store files (either input files or generated files) relevant to a IND process
+** DocumentDB service to keep textual, cleaned versions of the files stored in S3 service
+
++
+The component access all these storage services via well known and documented interfaces using either pure TCP or HTTP request/reply connectors.
+Documentation of the particular storage interfaces can be found on AWS site.
+The component consumes *AIService* to generate needed output documentation using *AIService* REST api via HTTP request/reply connector.
+The component embeds *FileConversionService* as a library. It uses its api via in process method calls to convert the IND related files between different formats, like PDF to text and vice versa.
+
+* *AIService*: the component provides access to large language models specifically fine-tuned for generation of SOW and IND output documents.
+The component provides REST API interface via HTTP request/reply connector to access the component functionalities.
+The component consumes Amazon machine learning services to build, train, deploy, and scale machine learning models.
+Access to these services is done via well known and documented interfaces.
+Documentation of the particular service interface can be found on AWS site.
+*SowService* and *IndService* are consumers of this component.
+
+* *FileConversionService*: the component provides functionality to convert files from one format into another, e.g. from PDF into pure text or JSON format.
+The component is a utility library which can be imported into a particular service.
+The component provides file format conversion API which can be invoked via in process method call.
+*SowService* and *IndService* are consumers of this component.
+
+* *Synthesis UI*: the component provides user interface for the system.
+The component is single page javascript application which runs in Users browser.
+Using this component, users can start new or manage existing SOW or IND processes.
+Users can enter information specific to a process, upload files related to the process and generate output documentation.
+The component consumes *SowService* and *IndService* REST api indirectly via *AmazonApiGateway* infrastructure component.
+This way the component can utilize secure HTTPS (HTTP over TLS) connector of the *AmazonApiGateway*.
+The *AmazonApiGateway* component will terminate TLS connection on it's end and forward the HTTP request to the appropriate internal component, either to *SowService* or *IndService*.
 
 === Primary model
 .System functional units
@@ -260,10 +318,10 @@ image::sow_process_list.png[]
 @startuml
 top to bottom direction
 
-actor Client <<browser>>
+actor Browser <<client>>
 
-package "Frontend" {
- component WebUI <<react, spa>>
+package "Front tier" {
+ component WebUI as "Synthesis UI" <<javascript>> #D8D2C2
  component APIGateway <<infrastructure>>
  APIGateway -u[hidden]- WebUI
 }
@@ -276,22 +334,22 @@ package "Backend Core" {
 
 package "Backend Supporting Services" {
  component FileConversionService <<service-provider>>
- component LlmService <<service-provider>>
- LlmService -u[hidden]- FileConversionService
+ component MachineLearningServices <<service-provider>>
+ MachineLearningServices -u[hidden]- FileConversionService
 }
 
 
-Client -r- WebUI :<<https>>
-Client -r- APIGateway :<<rest over https>>
-APIGateway -r- AuthService :<<rest over http>>
-APIGateway -r- IndService :<<rest over http>>
+Browser -r- WebUI :<<https>>
+Browser -r- APIGateway :<<rest over https>>
+WebUI -r- AuthService :<<rest over http>>
+WebUI -r- IndService :<<rest over http>>
 SowService -u[hidden]- AuthService
 SowService -d[hidden]- IndService
 SowService -r- FileConversionService :<<request/reply>>
-SowService -r- LlmService :<<http>>
+SowService -r- MachineLearningServices :<<http>>
 SowService -l- APIGateway  :<<rest over http>>
 IndService -r- FileConversionService :<<request/reply>>
-IndService -r- LlmService :<<http>>
+IndService -r- MachineLearningServices :<<http>>
 @enduml
 ....
 
@@ -344,7 +402,7 @@ component SowService <<service-provider, service-consumer>> {
  }
 }
 
-component LlmService <<service-provider>> {
+component MachineLearningServices <<service-provider>> {
  component SowFineTunedModel <<llm_model>>
 }
 
@@ -373,7 +431,7 @@ component IndService <<service-provider, service-consumer>> {
  database IndFileChunksStore<<document_db>>
 }
 
-component LlmService <<service-provider>> {
+component MachineLearningServices <<service-provider>> {
  component IndFineTunedModel<<llm_model>>
 }
 
@@ -477,60 +535,75 @@ package "IndService" {
 ****
 === Primary deployment model
 .System deployment model
+
+.Functional model
 [plantuml]
 ....
-!define AWSPuml https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v14.0/dist
-!include AWSPuml/AWSCommon.puml
-!include AWSPuml/Analytics/Athena.puml
-!include AWSPuml/ApplicationIntegration/StepFunctions.puml
-!include AWSPuml/BusinessApplications/all.puml
-!include AWSPuml/Compute/Lambda.puml
-!include AWSPuml/DeveloperTools/CodeBuild.puml
-!include AWSPuml/Storage/SimpleStorageService.puml
+@startuml
+top to bottom direction
 
-node AWS {
+' Uncomment the line below for "dark mode" styling
+'!$AWS_DARK = true
 
-	CodeBuild(BuildService, "Build Job", "service", "Run python tox") {
-		component Tests << object group >>
-	}
-	Tests -up-( SqlApi
-	Tests -right-( ReadErrorFile
-	Tests --down-( PutFile
+!includeurl <aws/common.puml>
+!includeurl <aws/AI/AmazonMachineLearning/AmazonMachineLearning.puml>
+!includeurl <aws/Analytics/AmazonCloudSearch/searchdocuments/searchdocuments.puml>
+!includeurl <aws/ApplicationServices/AmazonAPIGateway/AmazonAPIGateway.puml>
+!includeurl <aws/Compute/AmazonEC2/AmazonEC2.puml>
+!includeurl <aws/Compute/AmazonEC2/instances/instances.puml>
+!includeurl <aws/Compute/AmazonECS/ECScontainer/ECScontainer.puml>
+!includeurl <aws/Database/AmazonRDS/AmazonRDS.puml>
+!includeurl <aws/General/AWScloud/AWScloud.puml>
+!includeurl <aws/General/client/client.puml>
+!includeurl <aws/General/users/users.puml>
+!includeurl <aws/MobileServices/AmazonCognito/AmazonCognito.puml>
+!includeurl <aws/NetworkingContentDelivery/AmazonCloudFront/AmazonCloudFront.puml>
+!includeurl <aws/SDKs/JavaScript/JavaScript.puml>
+!includeurl <aws/Storage/AmazonS3/AmazonS3.puml>
 
-	SimpleStorageService(LandingBucket, "Landing Bucket", "service", "Put raw csv files here for processing")
-	LandingBucket -[hidden]up- Tests
-	LandingBucket -up- PutFile
-	LandingBucket -right-( ConsumeEvent
+skinparam artifactBackgroundColor White
+skinparam agentBackgroundColor White
+skinparam componentBackgroundColor White
+skinparam nodeBackgroundColor White
 
-	Lambda(FileWatcher, "File Watcher", "service", "Starts step function")
-	FileWatcher -[hidden]left- LandingBucket
-	FileWatcher -left- ConsumeEvent
-	FileWatcher -right-( RunStepFunction
-
-	StepFunctions(Orchestrator, "ETL Orchestrator", "service", "Data Factory Pipeline")
-	Orchestrator -[hidden]left- FileWatcher
-	Orchestrator -left- RunStepFunction
-	Orchestrator -up-( PutErrorFile
-	Orchestrator -right-( PutGoldFile
-
-	SimpleStorageService(SilverBucket, "Silver Bucket", "service", "Validated csv files")
-	SilverBucket -[hidden]down- Orchestrator
-	SilverBucket -up- ReadErrorFile
-	SilverBucket -down- PutErrorFile
-
-	SimpleStorageService(GoldBucket, "Gold Bucket", "service", "Transformed parquet files")
-	GoldBucket -[hidden]left- Orchestrator
-	GoldBucket -left- PutGoldFile
-	GoldBucket -up- ReadGoldFile
-
-	Athena(AthenaService, "Athena Service", "service", "SQL Engine")
-	AthenaService -[hidden]left- Tests
-	AthenaService -[hidden]down- GoldBucket
-	AthenaService -left-( ReadErrorFile
-	AthenaService -up- SqlApi
-	AthenaService -down-( ReadGoldFile
-
+USERS(SystemUser)
+component Browser <<client>> {
+ JAVASCRIPT(WebUI, "Synthesis UI", "component", "#EE472A", "system") #D8D2C2
 }
+AWSCLOUD(aws) {
+ AMAZONCLOUDFRONT(CloudFront)
+ AMAZONCOGNITO(CognitoAuthService)
+ AMAZONAPIGATEWAY(ApiGateway)
+ AMAZONEC2_INSTANCES(ec2_cluster) {
+  AMAZONEC2(ec2_instance) {
+   ECSCONTAINER(SowService, SowService) #D8D2C2
+   ECSCONTAINER(IndService, IndService) #D8D2C2
+  }
+ }
+ AMAZONRDS(RelationalStore, RelationalStore)
+ AMAZONS3(FileStore, FileStore)
+ SEARCHDOCUMENTS(DocumentStore, DocumentStore)
+ AMAZONMACHINELEARNING(MachineLearningServices)
+}
+
+SystemUser --> Browser :<<uses>>
+Browser --> CloudFront :<<access>>
+CloudFront --> WebUI :<<loads>>
+WebUI --> CognitoAuthService  :<<login>>
+WebUI --> ApiGateway :<<uses>>
+ApiGateway --> SowService :<<uses>>
+SowService --> RelationalStore :<<uses>>
+SowService --> FileStore :<<uses>>
+SowService --> DocumentStore :<<uses>>
+SowService --> MachineLearningServices :<<uses>>
+
+legend left
+Key
+|Color| Type |
+|<#D8D2C2>| Components comprising the system|
+|<#FFFFFF>| Components external to the system|
+end legend
+@enduml
 ....
 
 == Operations View
@@ -562,12 +635,12 @@ N/A
 === Requirements
 This section is a free interpretation of the requirements by the author of this document from information collected at the discovery calls held with the client.
 
-IMPORTANT: Official requirements shall be documented elsewhere outside of this document.
+IMPORTANT: Official requirements shall be captured elsewhere and documents outside of this document.
 
-==== Sales Engagement Process requirements
-Following picture denotes the model of use cases for the Sales Engagement Process envisioned and proposed by the author.
+==== Sales Engagement Process SOW Generation Process requirements
+Following picture denotes the use case model for the Sales Engagement Process envisioned and proposed by the author of this document.
 
-.Statement of Work Uses Cases
+.Sales Engagement Process SOW Generation Process Uses Cases
 [plantuml]
 ....
 @startuml
@@ -579,7 +652,7 @@ package SowService{
   usecase "Add basic client information to the project" as UC2
   usecase "Upload Introductory Call transcript for the project" as UC3
   usecase "Upload Scoping Call transcript for the project" as UC4
-  usecase "Genarate SOW proposal for the project" as UC5
+  usecase "Generate Statement of Work (SOW) proposal for the project" as UC5
   usecase "List Sales Engagement Process projects" as UC6
   usecase "Open existing Sales Engagement Process project" as UC7
   usecase "Close existing Sales Engagement Process project" as UC8
@@ -593,5 +666,33 @@ user --> UC6
 user --> UC7
 user --> UC8
 @enduml
+....
 
+==== Investigational New Drug FDA Submission Process requirements
+Following picture denotes the use case model for the Investigational New Drug FDA Submission Process envisioned and proposed by the author of this document.
+
+.Investigational New Drug FDA Submission Process Uses Cases
+[plantuml]
+....
+@startuml
+left to right direction
+actor User as user
+
+package SowService{
+  usecase "Create new Investigational New Drug Process project" as UC1
+  usecase "Add basic client information to the project" as UC2
+  usecase "Upload input files to the project" as UC3
+  usecase "Generate IND proposal for the project" as UC4
+  usecase "List Investigational New Drug Process projects" as UC5
+  usecase "Open existing Investigational New Drug Process project" as UC6
+  usecase "Close existing Investigational New Drug Process project" as UC7
+}
+user --> UC1
+user --> UC2
+user --> UC3
+user --> UC4
+user --> UC5
+user --> UC6
+user --> UC7
+@enduml
 ....
