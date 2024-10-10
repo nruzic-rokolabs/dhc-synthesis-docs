@@ -1,0 +1,597 @@
+= Synthesis project Architecture Description
+
+////
+== Document control
+N/A
+////
+
+== Table of contents
+N/A
+
+== Introduction
+****
+* objectives of the document
+* goals of the system
+* scope and key requirements
+* overview of the solution
+* benefits of the solution
+* risk and mitigation strategies of the solution
+* key decisions
+* outstanding issues
+****
+This document describes solution proposal for the system which supports the following client business processes:
+
+1. Sales Engagement process
+2. IND FDA Submission process
+
+Goal of the system is to help the client to track and manage the listed client business processes and to automatically generate the output artifacts, i.e. final documents that come out of these processes.
+
+Definition of scope and key requirements will be documented outside of this document.
+Nevertheless, rough and incomplete list of captured use cases can be found in appendix in the <<Requirements>> section.
+
+For the quick overview of the solution please take a look at <<Context View>> section.
+For the interested, more details about the system can be found in the <<Functional View>> section.
+
+////
+== Stakeholders
+****
+list stakeholders and their concerns
+****
+N/A
+////
+
+== General Architectural Principles
+****
+* list principles
+** give rationale and implications for each principle
+** map back to business drivers
+** map forward to architectural design decisions
+****
+N/A
+
+== Architectural design decisions
+****
+* List and describe key design decisions
+** Give rationale for each decision, document alternatives considered and explain why they were rejected
+****
+N/A
+
+////
+== Viewpoints
+****
+Define viewpoints on which your views are based upon. Use external references.
+****
+N/A
+////
+
+== Context View
+////
+****
+* Principles
+* Models
+* Perspective improvements
+* Scenarios
+* Decisions
+* Comments
+****
+////
+This section of the document provides a high-level view of the system and its environment, showing how the system interacts with external entities.
+We will use following model to document the system’s boundaries and identify its key relationships with users, other systems, and external environments.
+
+=== Context model
+Model depicted below shows the system in the context of the cloud environment.
+
+.System context model
+[plantuml]
+....
+@startuml
+top to bottom direction
+
+' Uncomment the line below for "dark mode" styling
+'!$AWS_DARK = true
+
+!includeurl <aws/common.puml>
+!includeurl <aws/AI/AmazonMachineLearning/AmazonMachineLearning.puml>
+!includeurl <aws/Analytics/AmazonCloudSearch/searchdocuments/searchdocuments.puml>
+!includeurl <aws/ApplicationServices/AmazonAPIGateway/AmazonAPIGateway.puml>
+!includeurl <aws/Compute/AmazonEC2/AmazonEC2.puml>
+!includeurl <aws/Compute/AmazonEC2/instances/instances.puml>
+!includeurl <aws/Compute/AmazonECS/ECScontainer/ECScontainer.puml>
+!includeurl <aws/Database/AmazonRDS/AmazonRDS.puml>
+!includeurl <aws/General/AWScloud/AWScloud.puml>
+!includeurl <aws/General/client/client.puml>
+!includeurl <aws/General/users/users.puml>
+!includeurl <aws/MobileServices/AmazonCognito/AmazonCognito.puml>
+!includeurl <aws/NetworkingContentDelivery/AmazonCloudFront/AmazonCloudFront.puml>
+!includeurl <aws/SDKs/JavaScript/JavaScript.puml>
+!includeurl <aws/Storage/AmazonS3/AmazonS3.puml>
+
+skinparam artifactBackgroundColor White
+skinparam agentBackgroundColor White
+skinparam componentBackgroundColor White
+skinparam nodeBackgroundColor White
+
+USERS(SystemUser, "User")
+component Browser <<client>> {
+ JAVASCRIPT(WebUI, "Synthesis UI", "component", "#EE472A", "system") #D8D2C2
+}
+AWSCLOUD(aws) {
+ AMAZONCLOUDFRONT(CloudFront)
+ AMAZONCOGNITO(CognitoAuthService)
+ AMAZONAPIGATEWAY(ApiGateway)
+ AMAZONEC2_INSTANCES(ec2_cluster) {
+  AMAZONEC2(System, "Synthesis Backend Services", "component", "#F58536", "system") #D8D2C2
+ }
+ AMAZONRDS(RelationalStore, RelationalStore)
+ AMAZONS3(FileStore, FileStore)
+ SEARCHDOCUMENTS(DocumentStore, DocumentStore)
+ AMAZONMACHINELEARNING(LlmService)
+}
+
+SystemUser --> Browser :<<uses>>
+Browser --> CloudFront :<<access>>
+CloudFront --> WebUI :<<loads>>
+WebUI --> CognitoAuthService  :<<login>>
+WebUI --> ApiGateway :<<uses>>
+ApiGateway --> System :<<uses>>
+System --> RelationalStore :<<uses>>
+System --> FileStore :<<uses>>
+System --> DocumentStore :<<uses>>
+System --> LlmService :<<uses>>
+
+legend left
+Key
+|Color| Type |
+|<#D8D2C2>| Components comprising the system|
+|<#FFFFFF>| Components external to the system|
+end legend
+@enduml
+....
+
+The system allows users to manage *Sales Engagement process (SOW)* or *IND FDA Submission process (IND)* through a web-based application.
+
+The system has two main parts, the user facing web application (*Synthesis UI*) and the backend services (*Synthesis Backend Services*).
+The system interfaces with several external entities:
+
+* *Users*: users, using Synthesis UI running in their browsers, log into the system to start new or manage existing SOW or IND processes. Users enters information specific to a process, upload files related to the process and generate output documentation.
+* *Browser*: a software installed on user machines that runs Synthesis UI
+* *AmazonCloudFront*: the service that hosts the Synthesis UI files. Browsers download these files and run them as Synthesis UI javascript application when users visit the system web site.
+* *AmazonCognitoService*: the service that hosts user details like username and password, and enables the Synthesis UI to acquire the security token needed for the communication with Synthesis Backend Services
+* *AmazonApiGateway*: the service that exposes the API of Synthesis Backend Services to the internet so it can be used by Synthesis UI. The service provides needed security an scalability features to enable Synthesis UI and Synthesis Backend Services to communicate in a secure and scalable way.
+* *AmazonEC2 instances*: the service that provides runtime platform for the Synthesis Backend Services.
+* *AmazonRDS RelationalStore*: the service that provides relational database storage for the system data that needs to be persisted, typically metadata about entities managed by the system.
+* *AmazonS3 FileStore*: the service that provides file storage the files that will be uploaded to the system or generated by the system.
+* *AmazonS3 DocumentStore*: the service that store, retrieve, and manage document-oriented information for the system, typically in formats like JSON. This kind od format is suitable to be feed in large language models. Files from AmazonS3 FileStore will typically be converted into JSON and stored into this service.
+* *AmazonMachineLearning*: the set of machine learning services that system uses to enable to build, train, deploy, and scale machine learning models
+
+== Functional View
+////
+****
+* Principles
+* Models
+* Perspective improvements
+* Scenarios
+* Decisions
+* Comments
+****
+////
+This section of the document describes system's functional structure, breaking it down into elements that deliver the functions of the system and detailing their responsibilities.
+We will define the system key runtime components, their responsibilities, the interfaces they expose, and the interaction between them.
+
+=== Functional structure model
+Model depicted below shows the system key functional runtime components.
+
+.Functional model
+[plantuml]
+....
+@startuml
+top to bottom direction
+
+' Uncomment the line below for "dark mode" styling
+'!$AWS_DARK = true
+
+!includeurl <aws/common.puml>
+!includeurl <aws/AI/AmazonMachineLearning/AmazonMachineLearning.puml>
+!includeurl <aws/Analytics/AmazonCloudSearch/searchdocuments/searchdocuments.puml>
+!includeurl <aws/ApplicationServices/AmazonAPIGateway/AmazonAPIGateway.puml>
+!includeurl <aws/Compute/AmazonEC2/AmazonEC2.puml>
+!includeurl <aws/Compute/AmazonEC2/instances/instances.puml>
+!includeurl <aws/Compute/AmazonECS/ECScontainer/ECScontainer.puml>
+!includeurl <aws/Database/AmazonRDS/AmazonRDS.puml>
+!includeurl <aws/General/AWScloud/AWScloud.puml>
+!includeurl <aws/General/client/client.puml>
+!includeurl <aws/General/user/user.puml>
+!includeurl <aws/MobileServices/AmazonCognito/AmazonCognito.puml>
+!includeurl <aws/NetworkingContentDelivery/AmazonCloudFront/AmazonCloudFront.puml>
+!includeurl <aws/SDKs/JavaScript/JavaScript.puml>
+!includeurl <aws/Storage/AmazonS3/AmazonS3.puml>
+
+skinparam artifactBackgroundColor White
+skinparam agentBackgroundColor White
+skinparam componentBackgroundColor White
+skinparam nodeBackgroundColor White
+
+USER(usr, "DHC User")
+component Browser <<client>> {
+ JAVASCRIPT(WebUI,WebUI)
+}
+AWSCLOUD(aws) {
+ AMAZONCLOUDFRONT(CloudFront) {
+  file WebUIArtifacts
+ }
+ AMAZONCOGNITO(CognitoAuthService, CognitoAuthService)
+ AMAZONAPIGATEWAY(ApiGateway)
+ AMAZONEC2_INSTANCES(ec2_cluster) {
+  AMAZONEC2(ec2_1) {
+   ECSCONTAINER(AuthService, AuthService)
+   ECSCONTAINER(SowService, SowService)
+   ECSCONTAINER(IndService, IndService)
+
+  }
+ }
+ AMAZONRDS(RelationalStore, RelationalStore)
+ AMAZONS3(FileStore, FileStore)
+ SEARCHDOCUMENTS(DocumentStore, DocumentStore)
+ AMAZONMACHINELEARNING(LlmService, Amazon Bedrock)
+}
+
+usr --> Browser :<<uses>>
+Browser -d[hidden]- aws
+CloudFront -> Browser :<<loads>>
+CognitoAuthService -> WebUI :<<login?>>
+WebUI --> ApiGateway :<<uses>>
+ApiGateway --> AuthService :<<uses?>>
+ApiGateway --> SowService :<<uses>>
+ApiGateway --> IndService :<<uses>>
+SowService --> RelationalStore
+SowService --> FileStore
+SowService --> DocumentStore
+SowService --> LlmService
+@enduml
+....
+
+
+image::sow_process_list.png[]
+
+=== Primary model
+.System functional units
+[plantuml]
+....
+@startuml
+top to bottom direction
+
+actor Client <<browser>>
+
+package "Frontend" {
+ component WebUI <<react, spa>>
+ component APIGateway <<infrastructure>>
+ APIGateway -u[hidden]- WebUI
+}
+
+package "Backend Core" {
+ component AuthService <<service-provider>>
+ component IndService <<service-provider,\nservice-consumer>>
+ component SowService <<service-provider,\nservice-consumer>>
+}
+
+package "Backend Supporting Services" {
+ component FileConversionService <<service-provider>>
+ component LlmService <<service-provider>>
+ LlmService -u[hidden]- FileConversionService
+}
+
+
+Client -r- WebUI :<<https>>
+Client -r- APIGateway :<<rest over https>>
+APIGateway -r- AuthService :<<rest over http>>
+APIGateway -r- IndService :<<rest over http>>
+SowService -u[hidden]- AuthService
+SowService -d[hidden]- IndService
+SowService -r- FileConversionService :<<request/reply>>
+SowService -r- LlmService :<<http>>
+SowService -l- APIGateway  :<<rest over http>>
+IndService -r- FileConversionService :<<request/reply>>
+IndService -r- LlmService :<<http>>
+@enduml
+....
+
+=== Functional decomposition
+
+.AuthService
+[plantuml]
+....
+@startuml
+top to bottom direction
+
+component WebUI {
+ component LoginPage
+}
+
+component AuthService {
+ component AuthManager<<object_group>>
+ database AuthStore<<relational_db>>
+}
+
+AuthManager -l- LoginPage :<<rest>>
+AuthManager -d- AuthStore :<<sql>>
+@enduml
+....
+
+.SowService
+[plantuml]
+....
+@startuml
+top to bottom direction
+
+component WebUI {
+ component SowPage
+}
+
+component SowService <<service-provider, service-consumer>> {
+ component SowManager<<object_group>>
+ database SowEntityStore <<relational_db>> {
+  component SalesEngagementProcessTable <<db_table>>
+ }
+ database SowFileStore <<s3_bucket>> {
+  component IntroductoryCallTranscriptFile <<file>>
+  component ScopingCallTranscriptFile <<file>>
+  ScopingCallTranscriptFile -u[hidden]- IntroductoryCallTranscriptFile
+ }
+ database SowFileChunksStore <<document_db>> {
+  component IntroductoryCallDocument <<json>>
+  component ScopingCallDocument <<json>>
+  ScopingCallDocument -u[hidden]- IntroductoryCallDocument
+ }
+}
+
+component LlmService <<service-provider>> {
+ component SowFineTunedModel <<llm_model>>
+}
+
+SowManager -l- SowPage :<<rest>>
+SowManager -r- SowFineTunedModel :<<http>>
+SowManager -d- SowEntityStore :<<sql>>
+SowManager -d- SowFileStore :<<http>>
+SowManager -d- SowFileChunksStore :<<http>>
+@enduml
+....
+
+.IndService
+[plantuml]
+....
+@startuml
+top to bottom direction
+
+component WebUI {
+ component IndPage
+}
+
+component IndService <<service-provider, service-consumer>> {
+ component IndManager<<object_group>>
+ database IndEntityStore<<relational_db>>
+ database IndFileStore<<s3_bucket>>
+ database IndFileChunksStore<<document_db>>
+}
+
+component LlmService <<service-provider>> {
+ component IndFineTunedModel<<llm_model>>
+}
+
+IndManager -l- IndPage :<<rest>>
+IndManager -r- IndFineTunedModel :<<http>>
+IndManager -d- IndEntityStore :<<sql>>
+IndManager -d- IndFileStore :<<http>>
+IndManager -d- IndFileChunksStore :<<http>>
+@enduml
+....
+
+== Information View
+****
+* Principles
+* Models
+* Perspective improvements
+* Scenarios
+* Decisions
+* Comments
+****
+N/A
+
+== Concurrency View
+****
+* Principles
+* Models
+* Perspective improvements
+* Scenarios
+* Decisions
+* Comments
+****
+N/A
+
+== Development View
+****
+* Principles
+* Models
+* Perspective improvements
+* Scenarios
+* Decisions
+* Comments
+****
+
+=== Primary modules decomposition view
+.System modules
+[plantuml]
+....
+@startuml
+package "System" {
+ package "UI"
+ package "Backend" {
+  package "AuthService"
+  package "SowService"
+  package "IndService"
+ }
+}
+@enduml
+....
+
+.SowService modules example
+[plantuml]
+....
+@startuml
+package "SowService" {
+ package "Application" {
+  file sales_engagement_process_service.py
+ }
+ package "Domain" {
+  file sales_engagement_process_repository.py
+  file sales_engagement_process_model.py
+ }
+ package "Connectors" {
+  file "rest_api_connector.py"
+  file "relational_db_connector.py"
+  file "document_db_connector.py"
+  file "s3_connector.py"
+ }
+ file "Dockerfile"
+}
+@enduml
+....
+
+.IndService modules example
+[plantuml]
+....
+@startuml
+package "IndService" {
+ label TBD
+}
+@enduml
+....
+
+== Deployment View
+****
+* Principles
+* Models
+* Perspective improvements
+* Scenarios
+* Decisions
+* Comments
+****
+=== Primary deployment model
+.System deployment model
+[plantuml]
+....
+!define AWSPuml https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v14.0/dist
+!include AWSPuml/AWSCommon.puml
+!include AWSPuml/Analytics/Athena.puml
+!include AWSPuml/ApplicationIntegration/StepFunctions.puml
+!include AWSPuml/BusinessApplications/all.puml
+!include AWSPuml/Compute/Lambda.puml
+!include AWSPuml/DeveloperTools/CodeBuild.puml
+!include AWSPuml/Storage/SimpleStorageService.puml
+
+node AWS {
+
+	CodeBuild(BuildService, "Build Job", "service", "Run python tox") {
+		component Tests << object group >>
+	}
+	Tests -up-( SqlApi
+	Tests -right-( ReadErrorFile
+	Tests --down-( PutFile
+
+	SimpleStorageService(LandingBucket, "Landing Bucket", "service", "Put raw csv files here for processing")
+	LandingBucket -[hidden]up- Tests
+	LandingBucket -up- PutFile
+	LandingBucket -right-( ConsumeEvent
+
+	Lambda(FileWatcher, "File Watcher", "service", "Starts step function")
+	FileWatcher -[hidden]left- LandingBucket
+	FileWatcher -left- ConsumeEvent
+	FileWatcher -right-( RunStepFunction
+
+	StepFunctions(Orchestrator, "ETL Orchestrator", "service", "Data Factory Pipeline")
+	Orchestrator -[hidden]left- FileWatcher
+	Orchestrator -left- RunStepFunction
+	Orchestrator -up-( PutErrorFile
+	Orchestrator -right-( PutGoldFile
+
+	SimpleStorageService(SilverBucket, "Silver Bucket", "service", "Validated csv files")
+	SilverBucket -[hidden]down- Orchestrator
+	SilverBucket -up- ReadErrorFile
+	SilverBucket -down- PutErrorFile
+
+	SimpleStorageService(GoldBucket, "Gold Bucket", "service", "Transformed parquet files")
+	GoldBucket -[hidden]left- Orchestrator
+	GoldBucket -left- PutGoldFile
+	GoldBucket -up- ReadGoldFile
+
+	Athena(AthenaService, "Athena Service", "service", "SQL Engine")
+	AthenaService -[hidden]left- Tests
+	AthenaService -[hidden]down- GoldBucket
+	AthenaService -left-( ReadErrorFile
+	AthenaService -up- SqlApi
+	AthenaService -down-( ReadGoldFile
+
+}
+....
+
+== Operations View
+****
+* Principles
+* Models
+* Perspective improvements
+* Scenarios
+* Decisions
+* Comments
+****
+N/A
+
+== Quality Property Summary
+****
+* General insights
+* Non view specific artifacts
+****
+N/A
+
+== Important Scenarios
+N/A
+
+== Issues Awaiting Resolution
+N/A
+
+== Appendices
+
+=== Requirements
+This section is a free interpretation of the requirements by the author of this document from information collected at the discovery calls held with the client.
+
+IMPORTANT: Official requirements shall be documented elsewhere outside of this document.
+
+==== Sales Engagement Process requirements
+Following picture denotes the model of use cases for the Sales Engagement Process envisioned and proposed by the author.
+
+.Statement of Work Uses Cases
+[plantuml]
+....
+@startuml
+left to right direction
+actor User as user
+
+package SowService{
+  usecase "Create new Sales Engagement Process project" as UC1
+  usecase "Add basic client information to the project" as UC2
+  usecase "Upload Introductory Call transcript for the project" as UC3
+  usecase "Upload Scoping Call transcript for the project" as UC4
+  usecase "Genarate SOW proposal for the project" as UC5
+  usecase "List Sales Engagement Process projects" as UC6
+  usecase "Open existing Sales Engagement Process project" as UC7
+  usecase "Close existing Sales Engagement Process project" as UC8
+}
+user --> UC1
+user --> UC2
+user --> UC3
+user --> UC4
+user --> UC5
+user --> UC6
+user --> UC7
+user --> UC8
+@enduml
+
+....
