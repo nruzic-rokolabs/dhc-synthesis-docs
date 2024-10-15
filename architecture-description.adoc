@@ -1,14 +1,8 @@
 = Synthesis project Architecture Description
-
-////
-== Document control
-N/A
-////
-
-== Table of contents
-N/A
+:toc:
 
 == Introduction
+////
 ****
 * objectives of the document
 * goals of the system
@@ -19,15 +13,16 @@ N/A
 * key decisions
 * outstanding issues
 ****
+////
 This document describes solution proposal for the system which supports the following client business processes:
 
-1. Sales Engagement process
-2. IND FDA Submission process
+1. Sales Engagement Process SOW Generation (SOW)
+2. Investigational New Drug FDA Submission Process (IND)
 
-Goal of the system is to help the client to track and manage the listed client business processes and to automatically generate the output artifacts, i.e. final documents that come out of these processes.
+Goal of the system is to help the client to track and manage the listed business processes and to automatically generate the processes output artifacts, i.e. final documents that come out of these processes.
 
 Definition of scope and key requirements will be documented outside of this document.
-Nevertheless, course, and probably incomplete, list of captured use cases can be found in appendix in the <<Requirements>> section.
+Nevertheless, coarse, and probably incomplete, list of captured use cases can be found in appendix in the <<Requirements>> section.
 
 For the quick overview of the solution please take a look at <<Context View>> section.
 More detail description of the system and its key functional elements can be found in the <<Functional View>> section.
@@ -36,30 +31,6 @@ More detail description of the system and its key functional elements can be fou
 == Stakeholders
 ****
 list stakeholders and their concerns
-****
-N/A
-////
-
-== General Architectural Principles
-****
-* list principles
-** give rationale and implications for each principle
-** map back to business drivers
-** map forward to architectural design decisions
-****
-N/A
-
-== Architectural design decisions
-****
-* List and describe key design decisions
-** Give rationale for each decision, document alternatives considered and explain why they were rejected
-****
-N/A
-
-////
-== Viewpoints
-****
-Define viewpoints on which your views are based upon. Use external references.
 ****
 N/A
 ////
@@ -93,10 +64,10 @@ top to bottom direction
 !includeurl <aws/common.puml>
 !includeurl <aws/AI/AmazonMachineLearning/AmazonMachineLearning.puml>
 !includeurl <aws/Analytics/AmazonCloudSearch/searchdocuments/searchdocuments.puml>
-!includeurl <aws/ApplicationServices/AmazonAPIGateway/AmazonAPIGateway.puml>
 !includeurl <aws/Compute/AmazonEC2/AmazonEC2.puml>
 !includeurl <aws/Compute/AmazonEC2/instances/instances.puml>
 !includeurl <aws/Compute/AmazonECS/ECScontainer/ECScontainer.puml>
+!includeurl <aws/Compute/ElasticLoadBalancing/ApplicationLoadBalancer/ApplicationLoadBalancer.puml>
 !includeurl <aws/Database/AmazonRDS/AmazonRDS.puml>
 !includeurl <aws/General/AWScloud/AWScloud.puml>
 !includeurl <aws/General/client/client.puml>
@@ -117,13 +88,12 @@ component Browser <<client>> {
 }
 AWSCLOUD(aws) {
  AMAZONCLOUDFRONT(CloudFront)
- AMAZONAPIGATEWAY(ApiGateway)
+ APPLICATIONLOADBALANCER(ApiGateway)
  AMAZONCOGNITO(CognitoAuthService)
  AMAZONEC2(System, "Synthesis Business Services", "component", "#F58536", "system") #D8D2C2
  AMAZONRDS(RelationalStore, RelationalStore)
  AMAZONS3(FileStore, FileStore)
  SEARCHDOCUMENTS(DocumentStore, DocumentStore)
- AMAZONMACHINELEARNING(MachineLearningServices)
 }
 
 SystemUsers --> Browser :<<use>>
@@ -134,7 +104,6 @@ ApiGateway --> System :<<uses>>
 System --> RelationalStore :<<uses>>
 System --> FileStore :<<uses>>
 System --> DocumentStore :<<uses>>
-System --> MachineLearningServices :<<uses>>
 
 legend left
 Color Key
@@ -145,7 +114,7 @@ end legend
 @enduml
 ....
 
-The system allows users to manage *Sales Engagement process (SOW)* or *IND FDA Submission process (IND)* through a web-based application.
+The system allows users to manage *Sales Engagement Process (SOW)* or *Investigational New Drug FDA Submission Process (IND)* through a web-based application.
 
 The system has two main parts, the user facing web application (*Synthesis UI*) and the backend business services (*Synthesis Business Services*).
 The system interfaces with several external entities:
@@ -156,15 +125,13 @@ Users enter information specific to a process, upload files related to the proce
 * *AmazonCloudFront*: the service that hosts the Synthesis UI files.
 Browsers download these files and run them as Synthesis UI javascript application when users visit the system website.
 * *AmazonCognitoService*: the service that hosts user details like username and password, and enables the Synthesis UI to acquire the security token needed for the communication with Synthesis Business Services
-* *AmazonApiGateway*: the service that exposes the API of Synthesis Business Services to the internet, so it can be used by Synthesis UI.
+* *ApplicationLoadBalancer*: the service that exposes the API of Synthesis Business Services to the internet, so it can be used by Synthesis UI.
 The service provides needed security and scalability features to enable Synthesis UI and Synthesis Business Services to communicate in a secure and scalable way.
-* *AmazonEC2 instances*: the service that provides runtime platform for the Synthesis Business Services.
 * *AmazonRDS RelationalStore*: the service that provides relational database storage for the system data that needs to be persisted, typically metadata about entities managed by the system.
 * *AmazonS3 FileStore*: the service that provides file storage the files that will be uploaded to the system or generated by the system.
-* *AmazonS3 DocumentStore*: the service that store, retrieve, and manage document-oriented information for the system, typically in formats like JSON.
+* *SearchDocuments DocumentStore*: the service that store, retrieve, and manage document-oriented information for the system, typically in formats like JSON.
 This kind od format is suitable to be feed in large language models.
 Files from AmazonS3 FileStore will typically be converted into JSON and stored into this service.
-* *AmazonMachineLearning*: the set of machine learning services that system uses to build, train, deploy, and scale machine learning models
 
 == Functional View
 ////
@@ -195,10 +162,10 @@ top to bottom direction
 !includeurl <aws/common.puml>
 !includeurl <aws/AI/AmazonMachineLearning/AmazonMachineLearning.puml>
 !includeurl <aws/Analytics/AmazonCloudSearch/searchdocuments/searchdocuments.puml>
-!includeurl <aws/ApplicationServices/AmazonAPIGateway/AmazonAPIGateway.puml>
 !includeurl <aws/Compute/AmazonEC2/AmazonEC2.puml>
 !includeurl <aws/Compute/AmazonEC2/instances/instances.puml>
 !includeurl <aws/Compute/AmazonECS/ECScontainer/ECScontainer.puml>
+!includeurl <aws/Compute/ElasticLoadBalancing/ApplicationLoadBalancer/ApplicationLoadBalancer.puml>
 !includeurl <aws/Database/AmazonRDS/AmazonRDS.puml>
 !includeurl <aws/General/AWScloud/AWScloud.puml>
 !includeurl <aws/General/client/client.puml>
@@ -219,7 +186,7 @@ component Browser <<client>> {
 }
 AWSCLOUD(aws) {
  AMAZONCLOUDFRONT(CloudFront)
- AMAZONAPIGATEWAY(ApiGateway)
+ APPLICATIONLOADBALANCER(ApiGateway)
  AMAZONCOGNITO(CognitoAuthService)
  component System #D8D2C2 {
   PYTHON(AIService, AIService, "component", "#F58536", "service") #D8D2C2
@@ -232,7 +199,6 @@ AWSCLOUD(aws) {
   AMAZONS3(FileStore, FileStore)
   SEARCHDOCUMENTS(DocumentStore, DocumentStore)
  }
- AMAZONMACHINELEARNING(MachineLearningServices)
 }
 
 Browser -(0- CloudFront :<<https>>
@@ -244,8 +210,7 @@ SowService -r-> FileConversionService :<<request/reply>>
 SowService -(0- AIService :<<http>>
 IndService -l-> FileConversionService :<<request/reply>>
 IndService -(0- AIService :<<http>>
-System -(0-- AwsStorageServices :<<tcp/http>>
-AIService -(0- MachineLearningServices :<<http>>
+System -d(0-- AwsStorageServices :<<tcp/http>>
 FileStore -l[hidden]- RelationalStore
 FileStore -r[hidden]- DocumentStore
 
@@ -293,7 +258,6 @@ The component embeds *FileConversionService* as a library. It uses its api via i
 
 * *AIService*: the component provides access to large language models specifically fine-tuned for generation of SOW and IND output documents.
 The component provides REST API interface via HTTP request/reply connector to access the component functionalities.
-The component consumes Amazon machine learning services to build, train, deploy, and scale machine learning models.
 Access to these services is done via well known and documented interfaces.
 Documentation of the particular service interface can be found on AWS site.
 *SowService* and *IndService* are consumers of this component.
@@ -307,340 +271,21 @@ The component provides file format conversion API which can be invoked via in pr
 The component is single page javascript application which runs in Users browser.
 Using this component, users can start new or manage existing SOW or IND processes.
 Users can enter information specific to a process, upload files related to the process and generate output documentation.
-The component consumes *SowService* and *IndService* REST api indirectly via *AmazonApiGateway* infrastructure component.
-This way the component can utilize secure HTTPS (HTTP over TLS) connector of the *AmazonApiGateway*.
-The *AmazonApiGateway* component will terminate TLS connection on it's end and forward the HTTP request to the appropriate internal component, either to *SowService* or *IndService*.
-
-=== Primary model
-.System functional units
-[plantuml]
-....
-@startuml
-top to bottom direction
-
-actor Browser <<client>>
-
-package "Front tier" {
- component WebUI as "Synthesis UI" <<javascript>> #D8D2C2
- component APIGateway <<infrastructure>>
- APIGateway -u[hidden]- WebUI
-}
-
-package "Backend Core" {
- component AuthService <<service-provider>>
- component IndService <<service-provider,\nservice-consumer>>
- component SowService <<service-provider,\nservice-consumer>>
-}
-
-package "Backend Supporting Services" {
- component FileConversionService <<service-provider>>
- component MachineLearningServices <<service-provider>>
- MachineLearningServices -u[hidden]- FileConversionService
-}
-
-
-Browser -r- WebUI :<<https>>
-Browser -r- APIGateway :<<rest over https>>
-WebUI -r- AuthService :<<rest over http>>
-WebUI -r- IndService :<<rest over http>>
-SowService -u[hidden]- AuthService
-SowService -d[hidden]- IndService
-SowService -r- FileConversionService :<<request/reply>>
-SowService -r- MachineLearningServices :<<http>>
-SowService -l- APIGateway  :<<rest over http>>
-IndService -r- FileConversionService :<<request/reply>>
-IndService -r- MachineLearningServices :<<http>>
-@enduml
-....
-
-=== Functional decomposition
-
-.AuthService
-[plantuml]
-....
-@startuml
-top to bottom direction
-
-component WebUI {
- component LoginPage
-}
-
-component AuthService {
- component AuthManager<<object_group>>
- database AuthStore<<relational_db>>
-}
-
-AuthManager -l- LoginPage :<<rest>>
-AuthManager -d- AuthStore :<<sql>>
-@enduml
-....
-
-.SowService
-[plantuml]
-....
-@startuml
-top to bottom direction
-
-component WebUI {
- component SowPage
-}
-
-component SowService <<service-provider, service-consumer>> {
- component SowManager<<object_group>>
- database SowEntityStore <<relational_db>> {
-  component SalesEngagementProcessTable <<db_table>>
- }
- database SowFileStore <<s3_bucket>> {
-  component IntroductoryCallTranscriptFile <<file>>
-  component ScopingCallTranscriptFile <<file>>
-  ScopingCallTranscriptFile -u[hidden]- IntroductoryCallTranscriptFile
- }
- database SowFileChunksStore <<document_db>> {
-  component IntroductoryCallDocument <<json>>
-  component ScopingCallDocument <<json>>
-  ScopingCallDocument -u[hidden]- IntroductoryCallDocument
- }
-}
-
-component MachineLearningServices <<service-provider>> {
- component SowFineTunedModel <<llm_model>>
-}
-
-SowManager -l- SowPage :<<rest>>
-SowManager -r- SowFineTunedModel :<<http>>
-SowManager -d- SowEntityStore :<<sql>>
-SowManager -d- SowFileStore :<<http>>
-SowManager -d- SowFileChunksStore :<<http>>
-@enduml
-....
-
-.IndService
-[plantuml]
-....
-@startuml
-top to bottom direction
-
-component WebUI {
- component IndPage
-}
-
-component IndService <<service-provider, service-consumer>> {
- component IndManager<<object_group>>
- database IndEntityStore<<relational_db>>
- database IndFileStore<<s3_bucket>>
- database IndFileChunksStore<<document_db>>
-}
-
-component MachineLearningServices <<service-provider>> {
- component IndFineTunedModel<<llm_model>>
-}
-
-IndManager -l- IndPage :<<rest>>
-IndManager -r- IndFineTunedModel :<<http>>
-IndManager -d- IndEntityStore :<<sql>>
-IndManager -d- IndFileStore :<<http>>
-IndManager -d- IndFileChunksStore :<<http>>
-@enduml
-....
-
-== Information View
-****
-* Principles
-* Models
-* Perspective improvements
-* Scenarios
-* Decisions
-* Comments
-****
-N/A
-
-== Concurrency View
-****
-* Principles
-* Models
-* Perspective improvements
-* Scenarios
-* Decisions
-* Comments
-****
-N/A
-
-== Development View
-****
-* Principles
-* Models
-* Perspective improvements
-* Scenarios
-* Decisions
-* Comments
-****
-
-=== Primary modules decomposition view
-.System modules
-[plantuml]
-....
-@startuml
-package "System" {
- package "UI"
- package "Backend" {
-  package "AuthService"
-  package "SowService"
-  package "IndService"
- }
-}
-@enduml
-....
-
-.SowService modules example
-[plantuml]
-....
-@startuml
-package "SowService" {
- package "Application" {
-  file sales_engagement_process_service.py
- }
- package "Domain" {
-  file sales_engagement_process_repository.py
-  file sales_engagement_process_model.py
- }
- package "Connectors" {
-  file "rest_api_connector.py"
-  file "relational_db_connector.py"
-  file "document_db_connector.py"
-  file "s3_connector.py"
- }
- file "Dockerfile"
-}
-@enduml
-....
-
-.IndService modules example
-[plantuml]
-....
-@startuml
-package "IndService" {
- label TBD
-}
-@enduml
-....
-
-== Deployment View
-****
-* Principles
-* Models
-* Perspective improvements
-* Scenarios
-* Decisions
-* Comments
-****
-=== Primary deployment model
-.System deployment model
-
-.Functional model
-[plantuml]
-....
-@startuml
-top to bottom direction
-
-' Uncomment the line below for "dark mode" styling
-'!$AWS_DARK = true
-
-!includeurl <aws/common.puml>
-!includeurl <aws/AI/AmazonMachineLearning/AmazonMachineLearning.puml>
-!includeurl <aws/Analytics/AmazonCloudSearch/searchdocuments/searchdocuments.puml>
-!includeurl <aws/ApplicationServices/AmazonAPIGateway/AmazonAPIGateway.puml>
-!includeurl <aws/Compute/AmazonEC2/AmazonEC2.puml>
-!includeurl <aws/Compute/AmazonEC2/instances/instances.puml>
-!includeurl <aws/Compute/AmazonECS/ECScontainer/ECScontainer.puml>
-!includeurl <aws/Database/AmazonRDS/AmazonRDS.puml>
-!includeurl <aws/General/AWScloud/AWScloud.puml>
-!includeurl <aws/General/client/client.puml>
-!includeurl <aws/General/users/users.puml>
-!includeurl <aws/MobileServices/AmazonCognito/AmazonCognito.puml>
-!includeurl <aws/NetworkingContentDelivery/AmazonCloudFront/AmazonCloudFront.puml>
-!includeurl <aws/SDKs/JavaScript/JavaScript.puml>
-!includeurl <aws/Storage/AmazonS3/AmazonS3.puml>
-
-skinparam artifactBackgroundColor White
-skinparam agentBackgroundColor White
-skinparam componentBackgroundColor White
-skinparam nodeBackgroundColor White
-
-USERS(SystemUser)
-component Browser <<client>> {
- JAVASCRIPT(WebUI, "Synthesis UI", "component", "#EE472A", "system") #D8D2C2
-}
-AWSCLOUD(aws) {
- AMAZONCLOUDFRONT(CloudFront)
- AMAZONCOGNITO(CognitoAuthService)
- AMAZONAPIGATEWAY(ApiGateway)
- AMAZONEC2_INSTANCES(ec2_cluster) {
-  AMAZONEC2(ec2_instance) {
-   ECSCONTAINER(SowService, SowService) #D8D2C2
-   ECSCONTAINER(IndService, IndService) #D8D2C2
-  }
- }
- AMAZONRDS(RelationalStore, RelationalStore)
- AMAZONS3(FileStore, FileStore)
- SEARCHDOCUMENTS(DocumentStore, DocumentStore)
- AMAZONMACHINELEARNING(MachineLearningServices)
-}
-
-SystemUser --> Browser :<<uses>>
-Browser --> CloudFront :<<access>>
-CloudFront --> WebUI :<<loads>>
-WebUI --> CognitoAuthService  :<<login>>
-WebUI --> ApiGateway :<<uses>>
-ApiGateway --> SowService :<<uses>>
-SowService --> RelationalStore :<<uses>>
-SowService --> FileStore :<<uses>>
-SowService --> DocumentStore :<<uses>>
-SowService --> MachineLearningServices :<<uses>>
-
-legend left
-Key
-|Color| Type |
-|<#D8D2C2>| Components comprising the system|
-|<#FFFFFF>| Components external to the system|
-end legend
-@enduml
-....
-
-== Operations View
-****
-* Principles
-* Models
-* Perspective improvements
-* Scenarios
-* Decisions
-* Comments
-****
-N/A
-
-== Quality Property Summary
-****
-* General insights
-* Non view specific artifacts
-****
-N/A
-
-== Important Scenarios
-N/A
-
-== Issues Awaiting Resolution
-N/A
+The component consumes *SowService* and *IndService* REST api indirectly via *ApplicationLoadBalancer* infrastructure component.
+This way the component can utilize secure HTTPS (HTTP over TLS) connector of the *ApplicationLoadBalancer*.
+The *ApplicationLoadBalancer* component will terminate TLS connection on it's end and forward the HTTP request to the appropriate internal component, either to *SowService* or *IndService*.
 
 == Appendices
 
 === Requirements
 This section is a free interpretation of the requirements by the author of this document from information collected at the discovery calls held with the client.
 
-IMPORTANT: Official requirements shall be captured elsewhere and documents outside of this document.
+IMPORTANT: Official requirements shall be captured elsewhere and documented outside of this document.
 
-==== Sales Engagement Process SOW Generation Process requirements
+==== Sales Engagement Process SOW Generation requirements
 Following picture denotes the use case model for the Sales Engagement Process envisioned and proposed by the author of this document.
 
-.Sales Engagement Process SOW Generation Process Uses Cases
+.Sales Engagement Process SOW Generation Uses Cases
 [plantuml]
 ....
 @startuml
@@ -678,7 +323,7 @@ Following picture denotes the use case model for the Investigational New Drug FD
 left to right direction
 actor User as user
 
-package SowService{
+package IndService{
   usecase "Create new Investigational New Drug Process project" as UC1
   usecase "Add basic client information to the project" as UC2
   usecase "Upload input files to the project" as UC3
